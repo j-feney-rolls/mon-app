@@ -1,12 +1,15 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
 
-// Ici on déclare les types des props — TypeScript oblige
-function CarteProfile({ prenom, role, abonnes }: {
+type Profil = {
+  id: string
   prenom: string
   role: string
   abonnes: number
-}) {
+}
+
+function CarteProfile({ prenom, role, abonnes }: Profil) {
   const [jeSuis, setJeSuis] = useState(false)
   const [compteur, setCompteur] = useState(abonnes)
 
@@ -44,14 +47,11 @@ function CarteProfile({ prenom, role, abonnes }: {
       }}>
         {prenom[0]}
       </div>
-
       <p style={{ fontWeight: "bold" }}>{prenom}</p>
       <p style={{ color: "#888", fontSize: 13 }}>{role}</p>
-
       <p style={{ fontSize: 17 }}>
         <strong>{compteur}</strong> abonnés
       </p>
-
       <button
         onClick={gererClic}
         style={{
@@ -71,16 +71,68 @@ function CarteProfile({ prenom, role, abonnes }: {
 }
 
 export default function Page() {
+  const [profils, setProfils] = useState<Profil[]>([])
+  const [chargement, setChargement] = useState(true)
+  const [erreur, setErreur] = useState("")
+
+  useEffect(() => {
+    async function chargerProfils() {
+      console.log("Début du chargement...")
+
+      const { data, error } = await supabase
+        .from("profils")
+        .select("*")
+
+      console.log("data :", data)
+      console.log("error :", error)
+
+      if (error) {
+        setErreur("Erreur : " + error.message)
+      } else {
+        setProfils(data || [])
+      }
+
+      setChargement(false)
+    }
+
+    chargerProfils()
+  }, [])
+
+  if (chargement) return (
+    <p style={{ padding: 48, fontFamily: "sans-serif" }}>
+      Chargement...
+    </p>
+  )
+
+  if (erreur) return (
+    <p style={{ padding: 48, fontFamily: "sans-serif", color: "red" }}>
+      {erreur}
+    </p>
+  )
+
+  if (profils.length === 0) return (
+    <p style={{ padding: 48, fontFamily: "sans-serif" }}>
+      Aucun profil trouvé.
+    </p>
+  )
+
   return (
     <main style={{
       display: "flex",
       gap: "24px",
       padding: "48px",
-      justifyContent: "center"
+      justifyContent: "center",
+      flexWrap: "wrap"
     }}>
-      <CarteProfile prenom="Marie" role="Dev front-end" abonnes={2400} />
-      <CarteProfile prenom="Paul" role="Designer" abonnes={890} />
-      <CarteProfile prenom="Léa" role="Product Manager" abonnes={1200} />
+      {profils.map((profil) => (
+        <CarteProfile
+          key={profil.id}
+          id={profil.id}
+          prenom={profil.prenom}
+          role={profil.role}
+          abonnes={profil.abonnes}
+        />
+      ))}
     </main>
   )
 }
